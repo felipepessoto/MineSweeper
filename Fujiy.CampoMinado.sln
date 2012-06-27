@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fujiy.CampoMinado.Core", "Fujiy.CampoMinado.Core\Fujiy.CampoMinado.Core.csproj", "{0499D111-066B-4F15-B9A2-39E1DB944158}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fujiy.CampoMinado.Cliente", "Fujiy.CampoMinado.Cliente\Fujiy.CampoMinado.Cliente.csproj", "{09AD58D0-44BA-4659-84AA-2EF8DF8BAE05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fujiy.CampoMinado.Servidor", "Fujiy.CampoMinado.Servidor\Fujiy.CampoMinado.Servidor.csproj", "{FCBA29F5-8094-4E52-AFCE-02B20B9D5A96}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0499D111-066B-4F15-B9A2-39E1DB944158}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0499D111-066B-4F15-B9A2-39E1DB944158}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0499D111-066B-4F15-B9A2-39E1DB944158}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0499D111-066B-4F15-B9A2-39E1DB944158}.Release|Any CPU.Build.0 = Release|Any CPU
+		{09AD58D0-44BA-4659-84AA-2EF8DF8BAE05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{09AD58D0-44BA-4659-84AA-2EF8DF8BAE05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{09AD58D0-44BA-4659-84AA-2EF8DF8BAE05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{09AD58D0-44BA-4659-84AA-2EF8DF8BAE05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCBA29F5-8094-4E52-AFCE-02B20B9D5A96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCBA29F5-8094-4E52-AFCE-02B20B9D5A96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCBA29F5-8094-4E52-AFCE-02B20B9D5A96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCBA29F5-8094-4E52-AFCE-02B20B9D5A96}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
