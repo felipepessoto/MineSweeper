@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Threading;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 
 namespace Fujiy.CampoMinado.Core
 {
@@ -15,10 +16,6 @@ namespace Fujiy.CampoMinado.Core
         private TcpListener listener;
 
         private readonly Jogador[] jogadores;
-        private readonly Thread[] jogadoresThreads;
-        private readonly Thread[] jogadoresPing;
-
-        private readonly Thread esperarJogadores;
 
         public ServidorJogo()
         {
@@ -27,40 +24,26 @@ namespace Fujiy.CampoMinado.Core
             jogadorAtual = 0;
 
             jogadores = new Jogador[2];
-            jogadoresThreads = new Thread[2];
-            jogadoresPing = new Thread[2];
 
-            esperarJogadores = new Thread(Iniciar);
-            esperarJogadores.Start();
+            Iniciar();
         }
 
-        public void Iniciar()
+        public async Task Iniciar()
         {
             listener = new TcpListener(IPAddress.Any, DefaultPort);
             listener.Start();
 
             SortearMapa();
 
-            Socket jog1Socket;
-
-            try
-            {
-                jog1Socket = listener.AcceptSocket();
-            }
-            catch { return; }
+            Socket jog1Socket = await listener.AcceptSocketAsync();
 
             jogadores[0] = new Jogador(jog1Socket, this, 0);
-            jogadoresThreads[0] = new Thread(jogadores[0].Executar);
-            jogadoresThreads[0].Start();
-
-            jogadoresPing[0] = new Thread(jogadores[0].Ping);
-            jogadoresPing[0].Start();
 
             Socket jog2Socket;
 
             try
             {
-                jog2Socket = listener.AcceptSocket();
+                jog2Socket = await listener.AcceptSocketAsync();
             }
             catch
             {
@@ -69,18 +52,13 @@ namespace Fujiy.CampoMinado.Core
             }
 
             jogadores[1] = new Jogador(jog2Socket, this, 1);
-            jogadoresThreads[1] = new Thread(jogadores[1].Executar);
-            jogadoresThreads[1].Start();
 
-            jogadoresPing[1] = new Thread(jogadores[1].Ping);
-            jogadoresPing[1].Start();
+            await jogadores[0].Executar();
+            await jogadores[0].Ping();
+
+            await jogadores[1].Executar();
+            await jogadores[1].Ping();
             
-            //Depois que o segundo jogador entra, acorda o primeiro jogador
-            lock (jogadores[0])
-            {
-                jogadores[0].ProcessoSuspenso = false;
-                Monitor.Pulse(jogadores[0]);
-            }
             listener.Stop();
         }
 

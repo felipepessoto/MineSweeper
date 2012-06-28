@@ -10,7 +10,7 @@ namespace Fujiy.CampoMinado.Cliente
             InitializeComponent();
         }
 
-        private void btnConectar_Click(object sender, EventArgs e)
+        private async void btnConectar_Click(object sender, EventArgs e)
         {
             lblConectando.Text = "Conectando...";
             Application.DoEvents();
@@ -18,7 +18,7 @@ namespace Fujiy.CampoMinado.Cliente
             Cliente Principal = new Cliente(txtIPServidor.Text);
 
             //Caso Conecte com Sucesso Abre o Jogo
-            if (Principal.Conectar())
+            if (await Principal.Conectar())
             {
                 Principal.Show();
                 this.Hide();

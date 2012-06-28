@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Net.Sockets;
 using System.Threading;
@@ -15,8 +16,6 @@ namespace Fujiy.CampoMinado.Cliente
         private Thread processoConexao;
         private TcpClient conexao;
         private NetworkStream stream;
-        private BinaryWriter writer;
-        private BinaryReader reader;
         private readonly string ipServidor;
         private DateTime horario;
         private TimeSpan diferenca;
@@ -36,7 +35,7 @@ namespace Fujiy.CampoMinado.Cliente
             InitializeComponent();
         }
 
-        public void Executar()
+        public async Task Executar()
         {
             //FALSE, PARA PERMITIR QUE ESSE PROCESSO TENHA ACESSO AO FORM(EX.: MUDAR O TEXTO DO LABEL)
             CheckForIllegalCrossThreadCalls = false;
@@ -45,9 +44,9 @@ namespace Fujiy.CampoMinado.Cliente
             {
                 Thread.Sleep(500);
                 //Espera O Aviso Que o Servidor Vai Enviar o Numero do Jogador
-            } while (LerDados() != (int)MensagemParaCliente.NumJogador && conexao.Connected);
+            } while (await LerDados() != (int)MensagemParaCliente.NumJogador && conexao.Connected);
 
-            meuNumero = LerDados();
+            meuNumero = await LerDados();
 
             if (meuNumero == 0)
             {
@@ -69,17 +68,20 @@ namespace Fujiy.CampoMinado.Cliente
             while (!terminou && conexao.Connected)
             {
                 Thread.Sleep(50);
-                ProcessMessage(LerDados());
+                ProcessMessage(await LerDados());
             }
         }
 
-        public int LerDados()
+        public async Task<int> LerDados()
         {
             int dados = 0;
             try
             {
                 if (conexao.Connected && conexao.Available != 0)
-                    dados = reader.ReadInt32();
+                {
+                    string mensagem = await new StreamReader(stream).ReadLineAsync();
+                    dados = int.Parse(mensagem);
+                }
             }
             catch
             {
@@ -89,7 +91,7 @@ namespace Fujiy.CampoMinado.Cliente
             return dados;
         }
 
-        public void ProcessMessage(int mensagem)
+        public async Task ProcessMessage(int mensagem)
         {
             #if DEBUG
             this.Height = 518;
@@ -132,16 +134,16 @@ namespace Fujiy.CampoMinado.Cliente
 
             if (mensagem == (int)MensagemParaCliente.Abrir)
             {
-                int localX = LerDados();
-                int localY = LerDados();
-                int situacao = LerDados();
+                int localX = await LerDados();
+                int localY = await LerDados();
+                int situacao = await LerDados();
 
                 AbrirEspaco(localX, localY, situacao);
             }
 
             if (mensagem == (int)MensagemParaCliente.Vez)
             {
-                if (LerDados() == meuNumero)
+                if (await LerDados() == meuNumero)
                 {
                     minhaVez = true;
                     lblVez.Text = "Sua Vez";
@@ -160,7 +162,7 @@ namespace Fujiy.CampoMinado.Cliente
 
             if (mensagem == (int)MensagemParaCliente.Addponto)
             {
-                AdicionarPonto(LerDados());
+                AdicionarPonto(await LerDados());
             }
 
             if (mensagem == (int)MensagemParaCliente.ComecaAbrirArea)
@@ -169,11 +171,11 @@ namespace Fujiy.CampoMinado.Cliente
                 List<int> localY = new List<int>();
                 List<int> situacao = new List<int>();
 
-                while (LerDados() != (int)MensagemParaCliente.FimAbrirArea)
+                while (await LerDados() != (int)MensagemParaCliente.FimAbrirArea)
                 {
-                    localX.Add(LerDados());
-                    localY.Add(LerDados());
-                    situacao.Add(LerDados());
+                    localX.Add(await LerDados());
+                    localY.Add(await LerDados());
+                    situacao.Add(await LerDados());
                 }
                 for (int x = 0; x < localX.Count; x++)
                 {
@@ -279,16 +281,16 @@ namespace Fujiy.CampoMinado.Cliente
             }
         }
 
-        private void mapa_Click(object sender, EventArgs e)
+        private async void mapa_Click(object sender, EventArgs e)
         {
             if (minhaVez)
             {
                 PictureBox clicada = (PictureBox)sender;
                 try
                 {
-                    writer.Write((int)MensagemParaServidor.Abrir);
-                    writer.Write(int.Parse(clicada.Name.Substring(0, 2)));
-                    writer.Write(int.Parse(clicada.Name.Substring(2, 2)));
+                    await new StreamWriter(stream).WriteLineAsync(((int) MensagemParaServidor.Abrir).ToString());
+                    await new StreamWriter(stream).WriteLineAsync(int.Parse(clicada.Name.Substring(0, 2)).ToString());
+                    await new StreamWriter(stream).WriteLineAsync(int.Parse(clicada.Name.Substring(2, 2)).ToString());
                 }
                 catch { }
             }
@@ -299,7 +301,7 @@ namespace Fujiy.CampoMinado.Cliente
             Preencher();
         }
 
-        public bool Conectar()
+        public async Task<bool> Conectar()
         {
             try
             {
@@ -310,24 +312,18 @@ namespace Fujiy.CampoMinado.Cliente
                 return false;
             }
             stream = conexao.GetStream();
-            writer = new BinaryWriter(stream);
-            reader = new BinaryReader(stream);
 
-            //Processo para enviar e receber mensagens
-            processoConexao = new Thread(Executar);
-            processoConexao.Start();
+            await Executar();
 
             return true;
         }
 
-        private void Cliente_FormClosing(object sender, FormClosingEventArgs e)
+        private async void Cliente_FormClosing(object sender, FormClosingEventArgs e)
         {
             terminou = true;
             try
             {
-                writer.Write((int)MensagemParaServidor.Desconectar);
-                reader.Close();
-                writer.Close();
+                await new StreamWriter(stream).WriteLineAsync(((int) MensagemParaServidor.Desconectar).ToString());
                 stream.Close();
                 conexao.Close();
                 Application.Exit();
