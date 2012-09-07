@@ -1,7 +1,5 @@
 using System;
-using System.IO;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Fujiy.CampoMinado.Core
@@ -41,7 +39,10 @@ namespace Fujiy.CampoMinado.Core
             if (numJogador == meuNumero)
                 pontos++;
             if (pontos > 25)
+            {
+                terminou = true;
                 await servidorRemoto.Venceu(numJogador);
+            }
         }
 
         public async Task AbrirLocalMapa(int coordX, int coordY, int situacao)

@@ -70,7 +70,7 @@ namespace Fujiy.CampoMinado.Cliente
 
         public async Task ProcessMessage()
         {
-            while (true)
+            while (!terminou)
             {
                 int mensagem = await LerDados();
 
@@ -84,12 +84,12 @@ namespace Fujiy.CampoMinado.Cliente
 
                 if (mensagem == (int) MensagemParaCliente.Venceu)
                 {
-                    MessageBox.Show("Voce Venceu!");
+                    MessageBox.Show("Você Venceu!");
                 }
 
                 if (mensagem == (int) MensagemParaCliente.Perdeu)
                 {
-                    MessageBox.Show("Voce Perdeu!");
+                    MessageBox.Show("Você Perdeu!");
                 }
 
                 if (mensagem == (int) MensagemParaCliente.Amigosaiu)
