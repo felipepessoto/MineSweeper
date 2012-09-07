@@ -9,7 +9,7 @@
         Perdeu,
         Vez,
         Amigosaiu,
-        Ping,
+        //Ping,
         LocalInvalido,
         NumJogador,
         ComecaAbrirArea,

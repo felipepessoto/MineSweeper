@@ -13,7 +13,6 @@ namespace Fujiy.CampoMinado.Cliente
 {
     public partial class Cliente : Form
     {
-        private Thread processoConexao;
         private TcpClient conexao;
         private NetworkStream stream;
         private readonly string ipServidor;
@@ -35,151 +34,118 @@ namespace Fujiy.CampoMinado.Cliente
             InitializeComponent();
         }
 
-        public async Task Executar()
-        {
-            //FALSE, PARA PERMITIR QUE ESSE PROCESSO TENHA ACESSO AO FORM(EX.: MUDAR O TEXTO DO LABEL)
-            CheckForIllegalCrossThreadCalls = false;
-            // Primeiro pega o numero de identificacao
-            do
-            {
-                Thread.Sleep(500);
-                //Espera O Aviso Que o Servidor Vai Enviar o Numero do Jogador
-            } while (await LerDados() != (int)MensagemParaCliente.NumJogador && conexao.Connected);
-
-            meuNumero = await LerDados();
-
-            if (meuNumero == 0)
-            {
-                lblJogVer.Text = "Vermelho(Você): ";
-                lblVez.Text = "Sua Vez";
-            }
-            else
-            {
-                lblJogAzul.Text = "Azul(Você): ";
-                lblVez.Text = "Vez do seu rival";
-            }
-
-            horario = DateTime.Now;
-
-            //Se for 0, voce comeca
-            minhaVez = meuNumero == 0;
-
-            // Recebe mensagens enviadas ao cliente
-            while (!terminou && conexao.Connected)
-            {
-                Thread.Sleep(50);
-                ProcessMessage(await LerDados());
-            }
-        }
-
         public async Task<int> LerDados()
         {
-            int dados = 0;
-            try
-            {
-                if (conexao.Connected && conexao.Available != 0)
-                {
-                    string mensagem = await new StreamReader(stream).ReadLineAsync();
-                    dados = int.Parse(mensagem);
-                }
-            }
-            catch
-            {
-                MessageBox.Show("Servidor caiu, game over", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return 0;
-            }
-            return dados;
+            byte[] buffer = new byte[4];
+            await stream.ReadAsync(buffer, 0, 4);
+            int mensagem = BitConverter.ToInt32(buffer, 0);
+
+#if DEBUG
+            Height = 518;
+            txtRecebidas.Text += "Recebendo: " + mensagem + "(" + (MensagemParaCliente)mensagem + ")" + Environment.NewLine;
+#endif
+            
+            return mensagem;
         }
 
-        public async Task ProcessMessage(int mensagem)
+        internal Task EnviarMsg(MensagemParaServidor mensagem)
         {
-            #if DEBUG
-            this.Height = 518;
-            if (mensagem > 0 && mensagem != (int)MensagemParaCliente.Ping)
-                txtRecebidas.Text += (MensagemParaCliente)mensagem + Environment.NewLine;
-            #endif
-            if (mensagem == (int)MensagemParaCliente.Desconectar)
+#if DEBUG
+            Height = 518;
+            txtRecebidas.Text += "Enviando: " + mensagem + Environment.NewLine;
+#endif
+            return EnviarMsg((int) mensagem);
+        }
+
+        internal async Task EnviarMsg(int mensagem)
+        {
+#if DEBUG
+            Height = 518;
+            txtRecebidas.Text += "Enviando: " + mensagem + Environment.NewLine;
+#endif
+
+            byte[] buffer = BitConverter.GetBytes(mensagem);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
+        }
+
+        public async Task ProcessMessage()
+        {
+            while (true)
             {
-                terminou = true;
-                try
+                int mensagem = await LerDados();
+
+                if (mensagem == (int) MensagemParaCliente.Desconectar)
                 {
+                    terminou = true;
                     stream.Close();
                     conexao.Close();
                     Application.Exit();
                 }
-                catch { };
-            }
 
-            if (mensagem == (int)MensagemParaCliente.Ping)
-            {
-                diferenca = DateTime.Now.Subtract(horario);
-                horario = DateTime.Now;
-                lblPing.Text = diferenca.Milliseconds.ToString();           
-            }
-
-            if (mensagem == (int)MensagemParaCliente.Venceu)
-            {
-                MessageBox.Show("Voce Venceu!");
-            }
-
-            if (mensagem == (int)MensagemParaCliente.Perdeu)
-            {
-                MessageBox.Show("Voce Perdeu!");
-            }
-
-            if (mensagem == (int)MensagemParaCliente.Amigosaiu)
-            {
-                MessageBox.Show("Seu Amigo Saiu!");
-            }
-
-            if (mensagem == (int)MensagemParaCliente.Abrir)
-            {
-                int localX = await LerDados();
-                int localY = await LerDados();
-                int situacao = await LerDados();
-
-                AbrirEspaco(localX, localY, situacao);
-            }
-
-            if (mensagem == (int)MensagemParaCliente.Vez)
-            {
-                if (await LerDados() == meuNumero)
+                if (mensagem == (int) MensagemParaCliente.Venceu)
                 {
-                    minhaVez = true;
-                    lblVez.Text = "Sua Vez";
+                    MessageBox.Show("Voce Venceu!");
                 }
-                else
+
+                if (mensagem == (int) MensagemParaCliente.Perdeu)
                 {
-                    minhaVez = false;
-                    lblVez.Text = "Vez do seu rival";
+                    MessageBox.Show("Voce Perdeu!");
                 }
-            }
 
-            if (mensagem == (int)MensagemParaCliente.LocalInvalido)
-            {
-                MessageBox.Show("Local Invalido");
-            }
-
-            if (mensagem == (int)MensagemParaCliente.Addponto)
-            {
-                AdicionarPonto(await LerDados());
-            }
-
-            if (mensagem == (int)MensagemParaCliente.ComecaAbrirArea)
-            {
-                List<int> localX = new List<int>();
-                List<int> localY = new List<int>();
-                List<int> situacao = new List<int>();
-
-                while (await LerDados() != (int)MensagemParaCliente.FimAbrirArea)
+                if (mensagem == (int) MensagemParaCliente.Amigosaiu)
                 {
-                    localX.Add(await LerDados());
-                    localY.Add(await LerDados());
-                    situacao.Add(await LerDados());
+                    MessageBox.Show("Seu Amigo Saiu!");
                 }
-                for (int x = 0; x < localX.Count; x++)
+
+                if (mensagem == (int) MensagemParaCliente.Abrir)
                 {
-                    AbrirEspaco(localX[x], localY[x], situacao[x]);
+                    int localX = await LerDados();
+                    int localY = await LerDados();
+                    int situacao = await LerDados();
+
+                    AbrirEspaco(localX, localY, situacao);
+                }
+
+                if (mensagem == (int) MensagemParaCliente.Vez)
+                {
+                    if (await LerDados() == meuNumero)
+                    {
+                        minhaVez = true;
+                        lblVez.Text = "Sua Vez";
+                    }
+                    else
+                    {
+                        minhaVez = false;
+                        lblVez.Text = "Vez do seu rival";
+                    }
+                }
+
+                if (mensagem == (int) MensagemParaCliente.LocalInvalido)
+                {
+                    MessageBox.Show("Local Invalido");
+                }
+
+                if (mensagem == (int) MensagemParaCliente.Addponto)
+                {
+                    AdicionarPonto(await LerDados());
+                }
+
+                if (mensagem == (int) MensagemParaCliente.ComecaAbrirArea)
+                {
+                    List<int> localX = new List<int>();
+                    List<int> localY = new List<int>();
+                    List<int> situacao = new List<int>();
+
+                    while (await LerDados() != (int) MensagemParaCliente.FimAbrirArea)
+                    {
+                        localX.Add(await LerDados());
+                        localY.Add(await LerDados());
+                        situacao.Add(await LerDados());
+                    }
+                    for (int x = 0; x < localX.Count; x++)
+                    {
+                        AbrirEspaco(localX[x], localY[x], situacao[x]);
+                    }
                 }
             }
         }
@@ -286,13 +252,10 @@ namespace Fujiy.CampoMinado.Cliente
             if (minhaVez)
             {
                 PictureBox clicada = (PictureBox)sender;
-                try
-                {
-                    await new StreamWriter(stream).WriteLineAsync(((int) MensagemParaServidor.Abrir).ToString());
-                    await new StreamWriter(stream).WriteLineAsync(int.Parse(clicada.Name.Substring(0, 2)).ToString());
-                    await new StreamWriter(stream).WriteLineAsync(int.Parse(clicada.Name.Substring(2, 2)).ToString());
-                }
-                catch { }
+
+                await EnviarMsg(MensagemParaServidor.Abrir);
+                await EnviarMsg(int.Parse(clicada.Name.Substring(0, 2)));
+                await EnviarMsg(int.Parse(clicada.Name.Substring(2, 2)));
             }
         }
 
@@ -301,34 +264,43 @@ namespace Fujiy.CampoMinado.Cliente
             Preencher();
         }
 
-        public async Task<bool> Conectar()
+        public async Task Conectar()
         {
-            try
-            {
-                conexao = new TcpClient(ipServidor, 2000);
-            }
-            catch
-            {
-                return false;
-            }
+            conexao = new TcpClient(ipServidor, 2000);
             stream = conexao.GetStream();
 
-            await Executar();
+            CheckForIllegalCrossThreadCalls = false;
 
-            return true;
+            while (await LerDados() != (int)MensagemParaCliente.NumJogador && conexao.Connected)
+            {
+            }
+
+            meuNumero = await LerDados();
+
+            if (meuNumero == 0)
+            {
+                lblJogVer.Text = "Vermelho(Você): ";
+                lblVez.Text = "Sua Vez";
+            }
+            else
+            {
+                lblJogAzul.Text = "Azul(Você): ";
+                lblVez.Text = "Vez do seu rival";
+            }
+
+            horario = DateTime.Now;
+            minhaVez = meuNumero == 0;
+
+            Task.Run(() => { ProcessMessage(); });
         }
 
         private async void Cliente_FormClosing(object sender, FormClosingEventArgs e)
         {
             terminou = true;
-            try
-            {
-                await new StreamWriter(stream).WriteLineAsync(((int) MensagemParaServidor.Desconectar).ToString());
-                stream.Close();
-                conexao.Close();
-                Application.Exit();
-            }
-            catch { };
+            await EnviarMsg(MensagemParaServidor.Desconectar);
+            stream.Close();
+            conexao.Close();
+            Application.Exit();
         }
     }
 }

@@ -13,21 +13,11 @@ namespace Fujiy.CampoMinado.Cliente
         private async void btnConectar_Click(object sender, EventArgs e)
         {
             lblConectando.Text = "Conectando...";
-            Application.DoEvents();
 
             Cliente Principal = new Cliente(txtIPServidor.Text);
-
-            //Caso Conecte com Sucesso Abre o Jogo
-            if (await Principal.Conectar())
-            {
-                Principal.Show();
-                this.Hide();
-            }
-            else
-            {
-                MessageBox.Show("Não foi possivel estabelecer a conexão");
-                lblConectando.Text = "";
-            }
+            await Principal.Conectar();
+            Principal.Show();
+            this.Hide();
         }
 
         private void txtIPServidor_KeyPress(object sender, KeyPressEventArgs e)
