@@ -115,11 +115,13 @@ namespace Fujiy.CampoMinado.Core
             }
         }
 
+        public bool IsBomb(int localX, int localY)
+        {
+            return mapa[localX, localY] == TipoLocal.Bomba;
+        }
+
         public int CalcularNumero(int localX, int localY)
         {
-            if (mapa[localX, localY] == TipoLocal.Bomba)
-                return 9;
-
             int total = 0;
 
             for(int x = -1; x<2;x++)
@@ -146,42 +148,42 @@ namespace Fujiy.CampoMinado.Core
 
             if (EstaFechado(localX, localY))
             {
-                //Calcula o numero do quadrado
-                int nQuadrado = CalcularNumero(localX, localY);
-
-                if (nQuadrado == 0)
+                if (IsBomb(localX, localY))
                 {
-                    await jogadores[jogadorAtual].EnviarMsg(MensagemParaCliente.ComecaAbrirArea);
-                    await jogadores[(jogadorAtual + 1) % 2].EnviarMsg(MensagemParaCliente.ComecaAbrirArea);
-                    await AbrirEmVolta(localX, localY);
-                    await jogadores[jogadorAtual].EnviarMsg(MensagemParaCliente.FimAbrirArea);
-                    await jogadores[(jogadorAtual + 1) % 2].EnviarMsg(MensagemParaCliente.FimAbrirArea);
-                }
+                    await jogadores[jogadorAtual].AbrirBomba(localX, localY, jogador);
+                    await jogadores[(jogadorAtual + 1) % 2].AbrirBomba(localX, localY, jogador);
 
-                //Envia a mensagem para o jogador atual
-                await jogadores[jogadorAtual].AbrirLocalMapa(localX, localY, nQuadrado);
-
-                await jogadores[(jogadorAtual + 1) % 2].AbrirLocalMapa(localX, localY, nQuadrado == 9 ? 10 : nQuadrado);
-
-                //Se acertou a bomba, adiciona o ponto
-                if (mapa[localX, localY] == TipoLocal.Bomba)
-                {
                     //Atualiza o mapa
                     mapa[localX, localY] = TipoLocal.BombaAberta;
 
                     //Atualiza jogador atual
                     await jogadores[jogadorAtual].AdicionarPonto(jogadorAtual);
                     //Atualiza rival
-                    await jogadores[(jogadorAtual + 1)%2].AdicionarPonto(jogadorAtual);
+                    await jogadores[(jogadorAtual + 1) % 2].AdicionarPonto(jogadorAtual);
                 }
-                    //Caso nao tenha acertado a bomba, passa a vez
                 else
                 {
+                    //Calcula o numero do quadrado
+                    int nQuadrado = CalcularNumero(localX, localY);
+
+                    if (nQuadrado == 0)
+                    {
+                        await jogadores[jogadorAtual].EnviarMsg(MensagemParaCliente.ComecaAbrirArea);
+                        await jogadores[(jogadorAtual + 1) % 2].EnviarMsg(MensagemParaCliente.ComecaAbrirArea);
+                        await AbrirEmVolta(localX, localY);
+                        await jogadores[jogadorAtual].EnviarMsg(MensagemParaCliente.FimAbrirArea);
+                        await jogadores[(jogadorAtual + 1) % 2].EnviarMsg(MensagemParaCliente.FimAbrirArea);
+                    }
+
+                    //Envia a mensagem para o jogador atual
+                    await jogadores[jogadorAtual].AbrirLocalMapa(localX, localY, nQuadrado);
+                    await jogadores[(jogadorAtual + 1)%2].AbrirLocalMapa(localX, localY, nQuadrado == 9 ? 10 : nQuadrado);
+
                     //Atualiza o mapa
                     mapa[localX, localY] = TipoLocal.Aberto;
 
                     //Passa a vez
-                    jogadorAtual = (jogadorAtual + 1)%2;
+                    jogadorAtual = (jogadorAtual + 1) % 2;
                     await jogadores[jogadorAtual].EnviarMsg(MensagemParaCliente.Vez);
                     await jogadores[jogadorAtual].EnviarMsg(jogadorAtual);
                     await jogadores[(jogadorAtual + 1) % 2].EnviarMsg(MensagemParaCliente.Vez);

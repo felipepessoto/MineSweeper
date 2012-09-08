@@ -14,8 +14,8 @@ namespace Fujiy.CampoMinado.Cliente
         {
             lblConectando.Text = "Conectando...";
 
-            Cliente Principal = new Cliente(txtIPServidor.Text);
-            await Principal.Conectar();
+            Cliente Principal = new Cliente();
+            await Principal.Conectar(txtIPServidor.Text);
             Principal.Show();
             this.Hide();
         }

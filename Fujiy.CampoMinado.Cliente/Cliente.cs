@@ -8,216 +8,94 @@ using System.Threading;
 using System.IO;
 using Fujiy.CampoMinado.Cliente.Properties;
 using Fujiy.CampoMinado.Core;
+using Fujiy.CampoMinado.Core.ClientSide;
 
 namespace Fujiy.CampoMinado.Cliente
 {
     public partial class Cliente : Form
     {
-        private TcpClient conexao;
-        private NetworkStream stream;
-        private readonly string ipServidor;
-        private DateTime horario;
-        private TimeSpan diferenca;
-
+        private readonly GameSession player = new GameSession();
         private readonly PictureBox[,] mapa = new PictureBox[16, 16];
 
-        private int meuNumero;
-        private bool minhaVez;
-        private bool terminou;
-
-        private int pontosVermelho;
-        private int pontosAzul;
-
-        public Cliente(string ip)
+        public Cliente()
         {
-            ipServidor = ip;
             InitializeComponent();
+            player.OpenPosition += player_OpenPosition;
+            player.ShowMessage += player_ShowMessage;
+            player.ChangeTurn += player_ChangeTurn;
+            player.OpenBomb += player_OpenBomb;
+            player.ScoredRefreshed += player_ScoredRefreshed;
         }
 
-        public async Task<int> LerDados()
+        private void player_ScoredRefreshed(object sender, EventArgs e)
         {
-            byte[] buffer = new byte[4];
-            await stream.ReadAsync(buffer, 0, 4);
-            int mensagem = BitConverter.ToInt32(buffer, 0);
-
-#if DEBUG
-            Height = 518;
-            txtRecebidas.Text += "Recebendo: " + mensagem + "(" + (MensagemParaCliente)mensagem + ")" + Environment.NewLine;
-#endif
-            
-            return mensagem;
+            lblPontosJogVer.Text = player.PontosVermelho.ToString();
+            lblPontosJogAzul.Text = player.PontosAzul.ToString();
         }
 
-        internal Task EnviarMsg(MensagemParaServidor mensagem)
+        private void player_OpenPosition(object sender, OpenedPositionEventArgs e)
         {
-#if DEBUG
-            Height = 518;
-            txtRecebidas.Text += "Enviando: " + mensagem + Environment.NewLine;
-#endif
-            return EnviarMsg((int) mensagem);
-        }
+            int localX = e.LocationX;
+            int localY = e.LocationY;
+            int bombsAround = e.BombsAround;
 
-        internal async Task EnviarMsg(int mensagem)
-        {
-#if DEBUG
-            Height = 518;
-            txtRecebidas.Text += "Enviando: " + mensagem + Environment.NewLine;
-#endif
-
-            byte[] buffer = BitConverter.GetBytes(mensagem);
-            await stream.WriteAsync(buffer, 0, buffer.Length);
-        }
-
-        public async Task ProcessMessage()
-        {
-            while (!terminou)
-            {
-                int mensagem = await LerDados();
-
-                if (mensagem == (int) MensagemParaCliente.Desconectar)
-                {
-                    terminou = true;
-                    stream.Close();
-                    conexao.Close();
-                    Application.Exit();
-                }
-
-                if (mensagem == (int) MensagemParaCliente.Venceu)
-                {
-                    MessageBox.Show("Você Venceu!");
-                }
-
-                if (mensagem == (int) MensagemParaCliente.Perdeu)
-                {
-                    MessageBox.Show("Você Perdeu!");
-                }
-
-                if (mensagem == (int) MensagemParaCliente.Amigosaiu)
-                {
-                    MessageBox.Show("Seu Amigo Saiu!");
-                }
-
-                if (mensagem == (int) MensagemParaCliente.Abrir)
-                {
-                    int localX = await LerDados();
-                    int localY = await LerDados();
-                    int situacao = await LerDados();
-
-                    AbrirEspaco(localX, localY, situacao);
-                }
-
-                if (mensagem == (int) MensagemParaCliente.Vez)
-                {
-                    if (await LerDados() == meuNumero)
-                    {
-                        minhaVez = true;
-                        lblVez.Text = "Sua Vez";
-                    }
-                    else
-                    {
-                        minhaVez = false;
-                        lblVez.Text = "Vez do seu rival";
-                    }
-                }
-
-                if (mensagem == (int) MensagemParaCliente.LocalInvalido)
-                {
-                    MessageBox.Show("Local Invalido");
-                }
-
-                if (mensagem == (int) MensagemParaCliente.Addponto)
-                {
-                    AdicionarPonto(await LerDados());
-                }
-
-                if (mensagem == (int) MensagemParaCliente.ComecaAbrirArea)
-                {
-                    List<int> localX = new List<int>();
-                    List<int> localY = new List<int>();
-                    List<int> situacao = new List<int>();
-
-                    while (await LerDados() != (int) MensagemParaCliente.FimAbrirArea)
-                    {
-                        localX.Add(await LerDados());
-                        localY.Add(await LerDados());
-                        situacao.Add(await LerDados());
-                    }
-                    for (int x = 0; x < localX.Count; x++)
-                    {
-                        AbrirEspaco(localX[x], localY[x], situacao[x]);
-                    }
-                }
-            }
-        }
-
-        private void AdicionarPonto(int idjogador)
-        {
-            if (idjogador == 0)
-            {
-                pontosVermelho++; 
-                lblPontosJogVer.Text = pontosVermelho.ToString();
-            }
-            else
-            {
-                pontosAzul++;
-                lblPontosJogAzul.Text = pontosAzul.ToString();
-            }
-        }
-
-        private void AbrirEspaco(int localX, int localY, int situacao)
-        {
-            if (situacao == 0)
+            if (bombsAround == 0)
             {
                 mapa[localX, localY].Image = Resources.Vazio;
             }
-            else if(situacao == 1)
+            else if (bombsAround == 1)
             {
                 mapa[localX, localY].Image = Resources._1;
             }
-            else if (situacao == 2)
+            else if (bombsAround == 2)
             {
                 mapa[localX, localY].Image = Resources._2;
             }
-            else if(situacao == 3)
+            else if (bombsAround == 3)
             {
                 mapa[localX, localY].Image = Resources._3;
             }
-            else if (situacao == 4)
+            else if (bombsAround == 4)
             {
                 mapa[localX, localY].Image = Resources._4;
             }
-            else if (situacao == 5)
+            else if (bombsAround == 5)
             {
                 mapa[localX, localY].Image = Resources._5;
             }
-            else if (situacao == 6)
+            else if (bombsAround == 6)
             {
                 mapa[localX, localY].Image = Resources._6;
             }
-            else if (situacao == 7)
+            else if (bombsAround == 7)
             {
                 mapa[localX, localY].Image = Resources._7;
             }
-            else if (situacao == 8)
+            else if (bombsAround == 8)
             {
                 mapa[localX, localY].Image = Resources._8;
             }
-            else if (situacao == 9)
+            else
             {
-                if (meuNumero == 0)
-                    mapa[localX, localY].Image = Resources.Vermelho;
-                else
-                    mapa[localX, localY].Image = Resources.Azul;
-            }
-            else if (situacao == 10)
-            {
-                if (meuNumero == 1)
-                    mapa[localX, localY].Image = Resources.Vermelho;
-                else
-                    mapa[localX, localY].Image = Resources.Azul;
+                throw new Exception();
             }
         }
 
+        private void player_OpenBomb(object sender, OpenedBombEventArgs e)
+        {
+            mapa[e.LocationX, e.LocationY].Image = e.PlayerNumber == 0 ? Resources.Vermelho : Resources.Azul;
+        }
+
+        private void player_ShowMessage(object sender, string e)
+        {
+            MessageBox.Show(e);
+        }
+
+        private void player_ChangeTurn(object sender, int e)
+        {
+            lblVez.Text = e == player.MeuNumero ? "Sua Vez" : "Vez do seu rival";
+        }
+        
         private void Preencher()
         {
             //Zera o mapa
@@ -231,16 +109,9 @@ namespace Fujiy.CampoMinado.Cliente
                                          Height = 20,
                                          Location = new Point(20*x, 20*y),
                                          Image = Resources.imagem,
-                                         Enabled = true
+                                         Enabled = true,
+                                         Name =  x.ToString("00") + y.ToString("00"),
                                      };
-
-                    if (x < 10)
-                        mapa[x, y].Name += "0";
-                    mapa[x, y].Name += x.ToString();
-                    if (y < 10)
-                        mapa[x, y].Name += "0";
-                    mapa[x, y].Name += y.ToString();
-
                     mapa[x, y].Click += mapa_Click;
                     PainelMapa.Controls.Add(mapa[x, y]);
                 }
@@ -249,14 +120,8 @@ namespace Fujiy.CampoMinado.Cliente
 
         private async void mapa_Click(object sender, EventArgs e)
         {
-            if (minhaVez)
-            {
-                PictureBox clicada = (PictureBox)sender;
-
-                await EnviarMsg(MensagemParaServidor.Abrir);
-                await EnviarMsg(int.Parse(clicada.Name.Substring(0, 2)));
-                await EnviarMsg(int.Parse(clicada.Name.Substring(2, 2)));
-            }
+            PictureBox clicada = (PictureBox)sender;
+            await player.TryToOpen(int.Parse(clicada.Name.Substring(0, 2)), int.Parse(clicada.Name.Substring(2, 2)));
         }
 
         private void Cliente_Load(object sender, EventArgs e)
@@ -264,20 +129,11 @@ namespace Fujiy.CampoMinado.Cliente
             Preencher();
         }
 
-        public async Task Conectar()
+        public async Task Conectar(string hostName)
         {
-            conexao = new TcpClient(ipServidor, 2000);
-            stream = conexao.GetStream();
+            await player.Connect(hostName);
 
-            CheckForIllegalCrossThreadCalls = false;
-
-            while (await LerDados() != (int)MensagemParaCliente.NumJogador && conexao.Connected)
-            {
-            }
-
-            meuNumero = await LerDados();
-
-            if (meuNumero == 0)
+            if (player.MeuNumero == 0)
             {
                 lblJogVer.Text = "Vermelho(Você): ";
                 lblVez.Text = "Sua Vez";
@@ -287,19 +143,11 @@ namespace Fujiy.CampoMinado.Cliente
                 lblJogAzul.Text = "Azul(Você): ";
                 lblVez.Text = "Vez do seu rival";
             }
-
-            horario = DateTime.Now;
-            minhaVez = meuNumero == 0;
-
-            Task.Run(() => { ProcessMessage(); });
         }
 
         private async void Cliente_FormClosing(object sender, FormClosingEventArgs e)
         {
-            terminou = true;
-            await EnviarMsg(MensagemParaServidor.Desconectar);
-            stream.Close();
-            conexao.Close();
+            await player.Disconnect();
             Application.Exit();
         }
     }

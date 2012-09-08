@@ -53,6 +53,14 @@ namespace Fujiy.CampoMinado.Core
             await EnviarMsg(situacao);
         }
 
+        public async Task AbrirBomba(int coordX, int coordY, int numeroJogador)
+        {
+            await EnviarMsg(MensagemParaCliente.AbrirBomba);
+            await EnviarMsg(coordX);
+            await EnviarMsg(coordY);
+            await EnviarMsg(numeroJogador);
+        }
+
         public async Task DesconectarJogador()
         {
             await EnviarMsg(MensagemParaCliente.Desconectar);

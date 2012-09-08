@@ -38,6 +38,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ClientSide\GameSession.cs" />
     <Compile Include="Jogador.cs" />
     <Compile Include="MensagemParaCliente.cs" />
     <Compile Include="MensagemParaServidor.cs" />
