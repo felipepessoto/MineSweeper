@@ -126,9 +126,9 @@
     <None Include="Vermelho.JPG" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Fujiy.CampoMinado.Core\Fujiy.CampoMinado.Core.csproj">
+    <ProjectReference Include="..\Fujiy.Minesweeper.Core\Fujiy.Minesweeper.Core.csproj">
       <Project>{0499d111-066b-4f15-b9a2-39e1db944158}</Project>
-      <Name>Fujiy.CampoMinado.Core</Name>
+      <Name>Fujiy.Minesweeper.Core</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
