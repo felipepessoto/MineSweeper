@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Fujiy.CampoMinado.Cliente.Properties;
+using Fujiy.CampoMinado.Core;
+using Fujiy.CampoMinado.Core.ClientSide;
+using System;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Net.Sockets;
-using System.Threading;
-using System.IO;
-using Fujiy.CampoMinado.Cliente.Properties;
-using Fujiy.CampoMinado.Core;
-using Fujiy.CampoMinado.Core.ClientSide;
 
 namespace Fujiy.CampoMinado.Cliente
 {
@@ -20,7 +16,7 @@ namespace Fujiy.CampoMinado.Cliente
         public Cliente()
         {
             InitializeComponent();
-            player.OpenPosition += player_OpenPosition;
+            player.PositionOpened += PlayerPositionOpened;
             player.ShowMessage += player_ShowMessage;
             player.ChangeTurn += player_ChangeTurn;
             player.OpenBomb += player_OpenBomb;
@@ -29,11 +25,11 @@ namespace Fujiy.CampoMinado.Cliente
 
         private void player_ScoredRefreshed(object sender, EventArgs e)
         {
-            lblPontosJogVer.Text = player.PontosVermelho.ToString();
-            lblPontosJogAzul.Text = player.PontosAzul.ToString();
+            lblPontosJogVer.Text = player.RedPlayerScore.ToString();
+            lblPontosJogAzul.Text = player.BluePlayerScore.ToString();
         }
 
-        private void player_OpenPosition(object sender, OpenedPositionEventArgs e)
+        private void PlayerPositionOpened(object sender, OpenedPositionEventArgs e)
         {
             int localX = e.LocationX;
             int localY = e.LocationY;
@@ -91,9 +87,9 @@ namespace Fujiy.CampoMinado.Cliente
             MessageBox.Show(e);
         }
 
-        private void player_ChangeTurn(object sender, int e)
+        private void player_ChangeTurn(object sender, PlayerColor e)
         {
-            lblVez.Text = e == player.MeuNumero ? "Sua Vez" : "Vez do seu rival";
+            lblVez.Text = e == player.MyPlayerColor ? "Sua Vez" : "Vez do seu rival";
         }
         
         private void Preencher()
@@ -121,7 +117,7 @@ namespace Fujiy.CampoMinado.Cliente
         private async void mapa_Click(object sender, EventArgs e)
         {
             PictureBox clicada = (PictureBox)sender;
-            await player.TryToOpen(int.Parse(clicada.Name.Substring(0, 2)), int.Parse(clicada.Name.Substring(2, 2)));
+            await player.OpenPosition(int.Parse(clicada.Name.Substring(0, 2)), int.Parse(clicada.Name.Substring(2, 2)));
         }
 
         private void Cliente_Load(object sender, EventArgs e)
@@ -133,7 +129,7 @@ namespace Fujiy.CampoMinado.Cliente
         {
             await player.Connect(hostName);
 
-            if (player.MeuNumero == 0)
+            if (player.MyPlayerColor == 0)
             {
                 lblJogVer.Text = "Vermelho(Você): ";
                 lblVez.Text = "Sua Vez";

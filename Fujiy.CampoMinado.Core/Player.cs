@@ -1,22 +1,23 @@
 using System;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Fujiy.CampoMinado.Core.ServerSide;
 
 namespace Fujiy.CampoMinado.Core
 {
-    public class Jogador
+    public class Player
     {
         private readonly Socket conexao;
         private readonly NetworkStream socketStream;
-        private readonly ServidorJogo servidorRemoto;
+        private readonly ServerGameSession servidorRemoto;
 
         private readonly int meuNumero;
-        private int pontos;
-        bool terminou;
+        private int score;
+        bool ended;
 
         public string MeuIp { get; set; }
 
-        public Jogador(Socket socket, ServidorJogo servidor, int numeroJogador)
+        public Player(Socket socket, ServerGameSession servidor, int numeroJogador)
         {
             conexao = socket;
             MeuIp = conexao.RemoteEndPoint.ToString();
@@ -34,73 +35,73 @@ namespace Fujiy.CampoMinado.Core
 
         public async Task AdicionarPonto(int numJogador)
         {
-            await EnviarMsg(MensagemParaCliente.Addponto);
-            await EnviarMsg(numJogador);
+            await SendData(MessageToClient.AddScore);
+            await SendData(numJogador);
             if (numJogador == meuNumero)
-                pontos++;
-            if (pontos > 25)
+                score++;
+            if (score > 25)
             {
-                terminou = true;
-                await servidorRemoto.Venceu(numJogador);
+                ended = true;
+                await servidorRemoto.Won(numJogador);
             }
         }
 
         public async Task AbrirLocalMapa(int coordX, int coordY, int situacao)
         {
-            await EnviarMsg(MensagemParaCliente.Abrir);
-            await EnviarMsg(coordX);
-            await EnviarMsg(coordY);
-            await EnviarMsg(situacao);
+            await SendData(MessageToClient.OpenPosition);
+            await SendData(coordX);
+            await SendData(coordY);
+            await SendData(situacao);
         }
 
         public async Task AbrirBomba(int coordX, int coordY, int numeroJogador)
         {
-            await EnviarMsg(MensagemParaCliente.AbrirBomba);
-            await EnviarMsg(coordX);
-            await EnviarMsg(coordY);
-            await EnviarMsg(numeroJogador);
+            await SendData(MessageToClient.OpenBomb);
+            await SendData(coordX);
+            await SendData(coordY);
+            await SendData(numeroJogador);
         }
 
         public async Task DesconectarJogador()
         {
-            await EnviarMsg(MensagemParaCliente.Desconectar);
+            await SendData(MessageToClient.Disconnect);
             socketStream.Close();
             conexao.Close();
-            terminou = true;
-            servidorRemoto.Desconectar();
+            ended = true;
+            servidorRemoto.Disconnect();
         }
 
         public async Task ProcessarMensagem()
         {
             int mensagem = await ReceberMsg();
 
-            if ((MensagemParaServidor)mensagem == MensagemParaServidor.Abrir)
+            if ((MessageToServer)mensagem == MessageToServer.OpenPosition)
             {
                 int localX = await ReceberMsg();
                 int localY = await ReceberMsg();
 
                 if (localX < 16 && localY < 16)
                 {
-                    servidorRemoto.JogadaValida(localX, localY, meuNumero);
+                    servidorRemoto.OpenPosition(localX, localY, meuNumero);
                 }
                 else
                 {
-                    await EnviarMsg(MensagemParaCliente.LocalInvalido);
+                    await SendData(MessageToClient.InvalidPosition);
                 }
             }
-            else if ((MensagemParaServidor)mensagem == MensagemParaServidor.Desconectar)
+            else if ((MessageToServer)mensagem == MessageToServer.Disconnect)
             {
-                servidorRemoto.AmigoSaiu(meuNumero);
+                servidorRemoto.FriendLeaved(meuNumero);
                 DesconectarJogador();
             }
         }
 
-        internal Task EnviarMsg(MensagemParaCliente mensagem)
+        internal Task SendData(MessageToClient mensagem)
         {
-            return EnviarMsg((int) mensagem);
+            return SendData((int) mensagem);
         }
 
-        internal async Task EnviarMsg(int mensagem)
+        internal async Task SendData(int mensagem)
         {
             byte[] buffer = BitConverter.GetBytes(mensagem);
             await socketStream.WriteAsync(buffer, 0, buffer.Length);
@@ -115,12 +116,12 @@ namespace Fujiy.CampoMinado.Core
 
         public async Task Executar()
         {
-            await EnviarMsg(MensagemParaCliente.NumJogador);
-            await EnviarMsg(meuNumero);
+            await SendData(MessageToClient.PlayerColor);
+            await SendData(meuNumero);
 
             if (conexao.Connected)
             {
-                while (!terminou)
+                while (!ended)
                 {
                     await ProcessarMensagem();
                 }

@@ -39,12 +39,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ClientSide\GameSession.cs" />
-    <Compile Include="Jogador.cs" />
-    <Compile Include="MensagemParaCliente.cs" />
-    <Compile Include="MensagemParaServidor.cs" />
+    <Compile Include="ClientSide\OpenedBombEventArgs.cs" />
+    <Compile Include="ClientSide\OpenedPositionEventArgs.cs" />
+    <Compile Include="PlayerColor.cs" />
+    <Compile Include="Player.cs" />
+    <Compile Include="MessageToClient.cs" />
+    <Compile Include="MessageToServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServidorJogo.cs" />
-    <Compile Include="TipoLocal.cs" />
+    <Compile Include="ServerSide\ServerGameSession.cs" />
+    <Compile Include="PositionType.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -1,29 +1,30 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Fujiy.CampoMinado.Core.ClientSide
 {
     public class GameSession
     {
-        private TcpClient conexao;
+        private TcpClient tcpConnection;
+        
         private NetworkStream stream;
-        private bool minhaVez;
-        public bool Terminou { get; private set; }
+        
+        private bool myTurn;
 
-        public int MeuNumero { get; private set; }
+        public bool Ended { get; private set; }
 
-        public int PontosVermelho { get; private set; }
-        public int PontosAzul { get; private set; }
+        public PlayerColor MyPlayerColor { get; private set; }
 
-        public event EventHandler<OpenedPositionEventArgs> OpenPosition;
+        public int RedPlayerScore { get; private set; }
+
+        public int BluePlayerScore { get; private set; }
+
+        public event EventHandler<OpenedPositionEventArgs> PositionOpened;
 
         public event EventHandler<string> ShowMessage;
 
-        public event EventHandler<int> ChangeTurn;
+        public event EventHandler<PlayerColor> ChangeTurn;
 
         public event EventHandler<OpenedBombEventArgs> OpenBomb;
 
@@ -31,33 +32,33 @@ namespace Fujiy.CampoMinado.Core.ClientSide
 
         public async Task Connect(string serverHostName)
         {
-            conexao = new TcpClient(serverHostName, 2000);
-            stream = conexao.GetStream();
+            tcpConnection = new TcpClient(serverHostName, 2000);
+            stream = tcpConnection.GetStream();
 
-            MensagemParaCliente response = await ReadDataEnum();
+            MessageToClient response = await ReadDataEnum();
 
-            if (response != MensagemParaCliente.NumJogador)
+            if (response != MessageToClient.PlayerColor)
             {
                 throw new Exception("Resposta inesperada");
             }
 
-            if (!conexao.Connected)
+            if (!tcpConnection.Connected)
             {
 //TODO acontece?
                 throw new Exception("VERIFICAR");
             }
 
-            MeuNumero = await ReadData();
-            minhaVez = MeuNumero == 0;
+            MyPlayerColor = (PlayerColor)await ReadData();
+            myTurn = MyPlayerColor == PlayerColor.Red;
 
             Task.Run(() => { ProcessMessage(); });
         }
 
-        public async Task TryToOpen(int x, int y)
+        public async Task OpenPosition(int x, int y)
         {
-            if (minhaVez)
+            if (myTurn)
             {
-                await SendData(MensagemParaServidor.Abrir);
+                await SendData(MessageToServer.OpenPosition);
                 await SendData(x);
                 await SendData(y);
             }
@@ -65,73 +66,73 @@ namespace Fujiy.CampoMinado.Core.ClientSide
 
         public async Task Disconnect()
         {
-            await SendData(MensagemParaServidor.Desconectar);
+            await SendData(MessageToServer.Disconnect);
             Finish();
         }
 
         private void Finish()
         {
-            Terminou = true;
+            Ended = true;
             stream.Close();
-            conexao.Close();
+            tcpConnection.Close();
         }
 
         public async Task ProcessMessage()
         {
-            while (!Terminou)
+            while (!Ended)
             {
-                MensagemParaCliente mensagem = await ReadDataEnum();
+                MessageToClient message = await ReadDataEnum();
 
-                if (mensagem == MensagemParaCliente.Desconectar)
+                if (message == MessageToClient.Disconnect)
                 {
                     Finish();
                 }
-                else if (mensagem == MensagemParaCliente.Venceu)
+                else if (message == MessageToClient.Won)
                 {
                     Finish();
                     ShowMessage(this, "Você Venceu!");
                 }
-                else if (mensagem == MensagemParaCliente.Perdeu)
+                else if (message == MessageToClient.Lost)
                 {
                     Finish();
                     ShowMessage(this, "Você Perdeu!");
                 }
-                else if (mensagem == MensagemParaCliente.Amigosaiu)
+                else if (message == MessageToClient.FriendLeaved)
                 {
                     Finish();
                     ShowMessage(this, "Seu Amigo Saiu!");
                 }
-                else if (mensagem == MensagemParaCliente.Abrir)
+                else if (message == MessageToClient.OpenPosition)
                 {
                     int localX = await ReadData();
                     int localY = await ReadData();
                     int bombsAround = await ReadData();
 
-                    OpenPosition(this, new OpenedPositionEventArgs(localX, localY, bombsAround));
+                    PositionOpened(this, new OpenedPositionEventArgs(localX, localY, bombsAround));
                 }
-                else if (mensagem == MensagemParaCliente.Vez)
+                else if (message == MessageToClient.ChangeTurn)
                 {
-                    int playerNumber = await ReadData();
-                    minhaVez = playerNumber == MeuNumero;
+                    PlayerColor playerNumber = (PlayerColor)await ReadData();
+                    myTurn = playerNumber == MyPlayerColor;
                     ChangeTurn(this, playerNumber);
                 }
-                else if (mensagem == MensagemParaCliente.LocalInvalido)
+                else if (message == MessageToClient.InvalidPosition)
                 {
                     ShowMessage(this, "Local Invalido");
                 }
-                else if (mensagem == MensagemParaCliente.Addponto)
+                else if (message == MessageToClient.AddScore)
                 {
                     AddScore(await ReadData());
                 }
 
-                else if (mensagem == MensagemParaCliente.ComecaAbrirArea)
+                else if (message == MessageToClient.StartOpenPositionRange)
                 {
-                    while (await ReadData() != (int)MensagemParaCliente.FimAbrirArea)
+                    while (await ReadData() != (int)MessageToClient.EndOpenPositionRange)
                     {
-                        OpenPosition(this, new OpenedPositionEventArgs(await ReadData(), await ReadData(), await ReadData()));
+                        PositionOpened(this, new OpenedPositionEventArgs(await ReadData(), await ReadData(), await ReadData()));
                     }
                 }
-                else if(mensagem ==MensagemParaCliente.AbrirBomba)
+                else if(message ==MessageToClient.OpenBomb)
                 {
                     int localX = await ReadData();
                     int localY = await ReadData();
@@ -150,70 +151,42 @@ namespace Fujiy.CampoMinado.Core.ClientSide
         {
             if (idjogador == 0)
             {
-                PontosVermelho++;
+                RedPlayerScore++;
             }
             else
             {
-                PontosAzul++;
+                BluePlayerScore++;
             }
             ScoredRefreshed(this, new EventArgs());
         }
 
-        private async Task<MensagemParaCliente> ReadDataEnum()
+        private async Task<MessageToClient> ReadDataEnum()
         {
             int result = await ReadData();
-            return (MensagemParaCliente) result;
+            return (MessageToClient) result;
         }
 
         private async Task<int> ReadData()
         {
-            byte[] buffer = new byte[4];
+            var buffer = new byte[4];
             await stream.ReadAsync(buffer, 0, 4);
-            int mensagem = BitConverter.ToInt32(buffer, 0);
+            int message = BitConverter.ToInt32(buffer, 0);
 
-            Console.WriteLine("Recebendo: " + mensagem + "(" + (MensagemParaCliente) mensagem + ")");
-            return mensagem;
+            Console.WriteLine("Recebendo: " + message + "(" + (MessageToClient) message + ")");
+            return message;
         }
 
-        private Task SendData(MensagemParaServidor mensagem)
+        private Task SendData(MessageToServer message)
         {
-            Console.Write("Enviando: " + mensagem);
-            return SendData((int)mensagem);
+            Console.Write("Enviando: " + message);
+            return SendData((int)message);
         }
 
-        private async Task SendData(int mensagem)
+        private async Task SendData(int message)
         {
-            Console.Write("Enviando: " + mensagem);
-            byte[] buffer = BitConverter.GetBytes(mensagem);
+            Console.Write("Enviando: " + message);
+            byte[] buffer = BitConverter.GetBytes(message);
             await stream.WriteAsync(buffer, 0, buffer.Length);
-        }
-    }
-
-    public class OpenedPositionEventArgs : EventArgs
-    {
-        public int LocationX { get; private set; }
-        public int LocationY { get; private set; }
-        public int BombsAround { get; private set; }
-
-        public OpenedPositionEventArgs(int locationX, int locationY, int bombsAround)
-        {
-            LocationX = locationX;
-            LocationY = locationY;
-            BombsAround = bombsAround;
-        }
-    }
-
-    public class OpenedBombEventArgs : EventArgs
-    {
-        public int LocationX { get; private set; }
-        public int LocationY { get; private set; }
-        public int PlayerNumber { get; private set; }
-
-        public OpenedBombEventArgs(int locationX, int locationY, int playerNumber)
-        {
-            LocationX = locationX;
-            LocationY = locationY;
-            PlayerNumber = playerNumber;
         }
     }
 }

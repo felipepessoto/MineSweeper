@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using Fujiy.CampoMinado.Core;
+using Fujiy.CampoMinado.Core.ServerSide;
 
 namespace Fujiy.CampoMinado.Servidor
 {
@@ -12,25 +13,25 @@ namespace Fujiy.CampoMinado.Servidor
             CheckForIllegalCrossThreadCalls = false;
         }
 
-        ServidorJogo servidorJogo;
+        ServerGameSession servidorJogo;
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (servidorJogo != null && !servidorJogo.Desconectado)
-                servidorJogo.Desconectar();
+            if (servidorJogo != null && !servidorJogo.Disconnected)
+                servidorJogo.Disconnect();
         }
         private void btnCriarServidor_Click(object sender, EventArgs e)
         {
             if (servidorJogo == null)
             {
                 btnCriarServidor.Text = "Parar Servidor";
-                servidorJogo = new ServidorJogo();
+                servidorJogo = new ServerGameSession();
                 timer1.Enabled = true;
             }
             else
             {
                 btnCriarServidor.Text = "Criar Servidor";
-                servidorJogo.Desconectar();
+                servidorJogo.Disconnect();
                 servidorJogo = null;
                 timer1.Enabled = false;
                 lblIP1.Text = "Não Conectado";
@@ -48,7 +49,7 @@ namespace Fujiy.CampoMinado.Servidor
         {
             lblIP1.Text = servidorJogo.EnderecoRemotoP0;
             lblIP2.Text = servidorJogo.EnderecoRemotoP1;
-            if (servidorJogo.Desconectado)
+            if (servidorJogo.Disconnected)
                 btnCriarServidor.PerformClick();
         }
 
